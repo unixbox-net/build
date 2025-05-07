@@ -1,0 +1,11 @@
+{
+  "modules": [
+    { "id": "01", "file": "01_prepare_iso.sh", "desc": "Mount ISO and create working darksite dir" },
+    { "id": "02", "file": "02_postinstall.sh", "desc": "Write postinstall.sh and bootstrap.service" },
+    { "id": "03", "file": "03_build_artifacts.sh", "desc": "Clone repos, build, and store debs in aptrepo" },
+    { "id": "04", "file": "04_preseed_config.sh", "desc": "Write preseed.cfg to ISO" },
+    { "id": "05", "file": "05_rebuild_iso.sh", "desc": "Compile new ISO using xorriso" },
+    { "id": "06", "file": "06_proxmox_finalize.sh", "desc": "Upload to Proxmox and convert to template" },
+    { "id": "07", "file": "07_finalize_template.sh", "desc": "Finishes template and shuts down vm" }
+  ]
+}
