@@ -9,6 +9,7 @@ error_log() { echo "[ERROR] $(date): $1" >&2; }
 
 # .iso.conf
 ISO_ORIG="/root/debian-12.10.0-amd64-netinst.iso" # Original Source .iso
+#ISO_ORIG="/root/debian-13.0.0-amd64-netinst.iso" # Original Source .iso
 BUILD_DIR="/root/bhs-dev-odin" # Directory to build packages & artifacts
 CUSTOM_DIR="$BUILD_DIR/custom" #  Add custom directories to include on the .iso
 MOUNT_DIR="/mnt/bhs-dev-odin" # Where to mount the .iso to be "repacked"
@@ -21,20 +22,22 @@ FINAL_ISO="/root/bhs-dev-odin.iso" # Final .iso output
 INPUT="5" #  Proxmox host number (update the case statment below)
 VMID="3005" # vmid of the TEMPLATE
 VLANID="30" # VLAN_id (see case statment below)
-VMNAME="bhs-dev-odin" # Name of the Template
-STATIC_IP="192.168.30.105" # Base/Starting IP
-NETMASK="255.255.255.0" # default netmask
-GATEWAY="192.168.30.1" # default gateway
-NAMESERVER="192.168.30.1" # default dns
+# === Template Base Info ===
+VMNAME="bhs-dev-odin"                  # Name of the template (short form)
+STATIC_IP="192.168.30.105"             # Base/Starting IP
+NETMASK="255.255.255.0"                 # Default netmask
+GATEWAY="192.168.30.1"                  # Default gateway
+NAMESERVER1="192.168.30.1"              # Default primary DNS
+NAMESERVER2="1.1.1.1"                   # Default secondary DNS
 
-# clone.conf
-NUM_CLONES=3 # Number of clones
-BASE_CLONE_VMID=305 # Starting VMID
-BASE_CLONE_IP="$STATIC_IP" # Starting with the Static IP
-CLONE_MEMORY_MB=4096 # Memory per clone
-CLONE_CORES=4 # Cores per clone
+# === Clone Config ===
+NUM_CLONES=3                            # Number of clones
+BASE_CLONE_VMID=305                     # Starting VMID
+BASE_CLONE_IP="$STATIC_IP"              # First clone IP starts here
+CLONE_MEMORY_MB=4096                    # Memory per clone
+CLONE_CORES=4                           # vCPUs per clone
 
-# === VLAN-derived env ===
+# === VLAN-derived Environment ===
 case "$VLANID" in
   10)
     : "${DOMAIN:=mgt.xaeon.io}"
@@ -79,30 +82,26 @@ case "$VLANID" in
     : "${NAMESERVER2:=1.1.1.1}"
     ;;
   *)
-    error_log "Unknown VLANID: $VLANID"; exit 1 ;;
+    error_log "Unknown VLANID: $VLANID"
+    exit 1
+    ;;
 esac
 
-# Build combined list once (for cloud-init, preseed, qm)
+# Combined nameserver list for cloud-init / qm
 NAMESERVERS_LIST="$NAMESERVER1${NAMESERVER2:+ $NAMESERVER2}"
-VMNAME_SHORT="${VMNAME}"
-DOMAIN="${DOMAIN}"
-FQDN="${VMNAME_SHORT}.${DOMAIN}"
-PROXMOX_VMNAME="${VMNAME_SHORT}.${DOMAIN}-${STATIC_IP}"
-VMNAME="$VMNAME_SHORT"
 
-# Clean VM Names
+# === Clean VM Name ===
 VMNAME_CLEAN="${VMNAME//[_\.]/-}"
-VMNAME_CLEAN="$(echo "$VMNAME_CLEAN" | sed 's/^-*//;s/-*$//')"
-VMNAME_CLEAN="$(echo "$VMNAME_CLEAN" | sed 's/--*/-/g')"
-VMNAME_CLEAN="$(echo "$VMNAME_CLEAN" | tr '[:upper:]' '[:lower:]')"
+VMNAME_CLEAN="$(echo "$VMNAME_CLEAN" | sed 's/^-*//;s/-*$//;s/--*/-/g' | tr '[:upper:]' '[:lower:]')"
 
 if [[ ! "$VMNAME_CLEAN" =~ ^[a-z0-9-]+$ ]]; then
-  error_log "Invalid VM name after cleanup: '$VMNAME_CLEAN'. Must be DNS-safe: letters, digits, dash only."
+  error_log "Invalid VM name after cleanup: '$VMNAME_CLEAN'. Must be DNS-safe."
   exit 1
 fi
 
-VMNAME="$VMNAME_CLEAN"
-log "[*] Using Proxmox host $INPUT, VMID $VMID, VLANID $VLANID"
+VMNAME_SHORT="$VMNAME_CLEAN"                           # Short hostname for inside VM
+FQDN="${VMNAME_SHORT}.${DOMAIN}"                       # Full hostname for guest DNS
+PROXMOX_VMNAME="${VMNAME_SHORT}.${DOMAIN}-${STATIC_IP}" # Name shown in Proxmox UI
 
 case "$INPUT" in
   1|bmh-pve-1) HOST_NAME="bmh-pve-1"; PROXMOX_HOST="10.0.10.10" ;;
@@ -210,6 +209,7 @@ log "[*] Writing postinstall.sh..."
   echo ""
   echo "# === Baked from build script ==="
   echo "VMNAME=\"$VMNAME\""
+  echo "VM_HOSTNAME=\"$VMNAME_SHORT\""
   echo "DOMAIN=\"$DOMAIN\""
   echo "NAMESERVER1=\"$NAMESERVER1\""
   echo "NAMESERVER2=\"${NAMESERVER2:-}\""
@@ -290,8 +290,6 @@ net.ipv6.conf.default.disable_ipv6 = 1
 EOF
   sysctl -p /etc/sysctl.d/99-disable-ipv6.conf
 }
-
-# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 write_bashrc() {
@@ -433,6 +431,25 @@ EOF
 }
 
 # -----------------------------------------------------------------------------
+generate_root_keys() {
+  log "Ensuring root has a local SSH keypair..."
+
+  local SSH_DIR="/root/.ssh"
+  local KEY_FILE="$SSH_DIR/id_ed25519"
+
+  mkdir -p "$SSH_DIR"
+  chmod 700 "$SSH_DIR"
+
+  if [ ! -f "$KEY_FILE" ]; then
+    ssh-keygen -t ed25519 -N '' -f "$KEY_FILE"
+    chmod 600 "$KEY_FILE" "$KEY_FILE.pub"
+    log "Root SSH keypair generated."
+  else
+    log "Root SSH keypair already exists — skipping."
+  fi
+}
+
+# -----------------------------------------------------------------------------
 configure_cloud_init() {
   log "Configuring Cloud-Init defaults (user + fallback)..."
 
@@ -446,13 +463,17 @@ configure_cloud_init() {
   # Main Cloud-Init user config
   local CUSTOM_CFG="$CONFIG_DIR/99_custom.cfg"
   cat <<EOF > "$CUSTOM_CFG"
+preserve_hostname: true
+manage_etc_hosts: false
+manage_resolv_conf: false
+
 disable_root: false
-preserve_hostname: false
 datasource_list: [ ConfigDrive, NoCloud ]
+
 ssh_pwauth: false
 ssh_deletekeys: true
 manage_ssh_keys: true
-ssh_genkeytypes: [ 'rsa', 'ecdsa', 'ed25519' ]
+ssh_genkeytypes: [ 'ed25519' ]
 
 runcmd:
   - ip link set dev ens18 mtu 9000
@@ -461,7 +482,7 @@ EOF
   chmod 600 "$CUSTOM_CFG"
   chown root:root "$CUSTOM_CFG"
 
-  log "Cloud-Init user config baked with MTU enforcement and fallback."
+  log "Cloud-Init configured (preserve_hostname=true, manage_etc_hosts=false)."
 }
 
 # -----------------------------------------------------------------------------
@@ -815,26 +836,22 @@ EOF
 # -----------------------------------------------------------------------------
 configure_dns_hosts() {
   log "Setting hostname and DNS from provided variables..."
-
-  : "${VMNAME:?missing VMNAME}"
+  : "${VM_HOSTNAME:?missing VM_HOSTNAME}"
   : "${DOMAIN:?missing DOMAIN}"
   : "${NAMESERVER1:?missing NAMESERVER1}"
-  # NAMESERVER2 optional
 
   IP="$(hostname -I | awk '{print $1}')"
-  FQDN="${VMNAME}.${DOMAIN}"
+  FQDN="${VM_HOSTNAME}.${DOMAIN}"
 
-  hostnamectl set-hostname "$FQDN"
-  echo "$VMNAME" > /etc/hostname
+  hostnamectl set-hostname "$VM_HOSTNAME"     # short only
+  echo "$VM_HOSTNAME" > /etc/hostname
 
   cat > /etc/hosts <<EOF
 127.0.0.1 localhost
-$IP $FQDN $VMNAME
+$IP $FQDN $VM_HOSTNAME
 EOF
 
-  # ensure resolv.conf is a plain file (not a symlink from systemd-resolved)
   [ -L /etc/resolv.conf ] && rm -f /etc/resolv.conf
-
   {
     echo "search $DOMAIN"
     echo "nameserver $NAMESERVER1"
@@ -843,8 +860,7 @@ EOF
 
   chmod 644 /etc/resolv.conf
   chown root:root /etc/resolv.conf
-
-  log "Hostname/DNS set: $FQDN; resolv.conf -> $(tr '\n' ' | ' < /etc/resolv.conf)"
+  log "Hostname set to: $VM_HOSTNAME; FQDN: $FQDN"
 }
 
 # -----------------------------------------------------------------------------
@@ -880,7 +896,6 @@ cleanup_identity() {
   rm -f /var/lib/dbus/machine-id
   ln -s /etc/machine-id /var/lib/dbus/machine-id
   rm -f /etc/ssh/ssh_host_* || true
-  dpkg-reconfigure openssh-server
 }
 
 # -----------------------------------------------------------------------------
@@ -898,6 +913,7 @@ log "Running template setup..."
 update_and_upgrade
 install_base_packages
 disable_ipv6
+generate_root_keys
 configure_cloud_init
 setup_vim_config
 write_bashrc
@@ -923,8 +939,6 @@ poweroff
 EOSCRIPT
 
 chmod +x "$DARKSITE_DIR/postinstall.sh"
-
-
 
 log "[*] Writing bootstrap.service..."
 cat > "$DARKSITE_DIR/bootstrap.service" <<'EOF'
@@ -964,6 +978,7 @@ set -Eeuo pipefail
 : "${VMNAME_CLEAN:?Missing VMNAME_CLEAN}"
 : "${VMNAME_SHORT:?Missing VMNAME_SHORT}"
 : "${DOMAIN:?Missing DOMAIN}"
+# CLONE_NAMESERVER2 optional
 
 # Build space-separated nameserver list for qm
 NAMESERVERS="${CLONE_NAMESERVER1}${CLONE_NAMESERVER2:+ ${CLONE_NAMESERVER2}}"
@@ -998,8 +1013,7 @@ for ((i=0; i<NUM_CLONES; i++)); do
 
   CLONE_IP="${IP_PREFIX}.${OCTET}"
   CLONE_INDEX=$((i+1))
-
-  # Proxmox-visible name: short.domain-CLONE_IP-<index>
+  # Proxmox UI name only (guest hostname is handled inside the VM)
   CLONE_NAME="${VMNAME_SHORT}.${DOMAIN}-${CLONE_IP}-${CLONE_INDEX}"
 
   echo "[*] Cloning $CLONE_NAME (VMID: $CLONE_VMID, IP: $CLONE_IP)..."
@@ -1007,17 +1021,19 @@ for ((i=0; i<NUM_CLONES; i++)); do
   ssh root@"$PROXMOX_HOST" "qm clone $TEMPLATE_VMID $CLONE_VMID --name \"$CLONE_NAME\" --full true --storage local-zfs"
   ssh root@"$PROXMOX_HOST" "qm set $CLONE_VMID --delete ide3 || true"
 
+
   ssh root@"$PROXMOX_HOST" "qm set $CLONE_VMID \
     --memory $CLONE_MEMORY_MB \
     --cores $CLONE_CORES \
     --net0 virtio,bridge=vmbr0,tag=$CLONE_VLAN_ID,firewall=1 \
     --ipconfig0 ip=${CLONE_IP}/24,gw=${CLONE_GATEWAY} \
-    --nameserver \"${CLONE_NAMESERVER1}${CLONE_NAMESERVER2:+ ${CLONE_NAMESERVER2}}\" \
+    --nameserver \"$NAMESERVERS\" \
+    --searchdomain \"$DOMAIN\" \
     --agent enabled=1 \
     --ide3 local-zfs:cloudinit \
     --boot order=scsi0"
 
-  # (optional) copy the pretty name into description, too
+  # Also store the pretty name in the description
   ssh root@"$PROXMOX_HOST" "qm set $CLONE_VMID --description \"$CLONE_NAME\""
 
   ssh root@"$PROXMOX_HOST" "qm start $CLONE_VMID"
@@ -1026,7 +1042,6 @@ done
 EOSCRIPT
 
 chmod +x "$DARKSITE_DIR/finalize-template.sh"
-
 # --- Preseed file ---
 log "[*] Creating preseed.cfg..."
 cat > "$CUSTOM_DIR/$PRESEED_FILE" <<EOF
@@ -1160,30 +1175,30 @@ log "[*] Creating VM $VMID on Proxmox host $PROXMOX_HOST..."
 ssh root@"$PROXMOX_HOST" bash <<EOSSH
 set -euxo pipefail
 
-VMID=$VMID
-VLANID=$VLANID
-VMNAME="$PROXMOX_VMNAME"
+VMID="$VMID"
+VLANID="$VLANID"
+FQDN="${VMNAME_SHORT}.${DOMAIN}"
 FINAL_ISO="$FINAL_ISO_BASENAME"
 
 # Destroy VM if it exists
-qm destroy \$VMID --purge || true
+qm destroy "\$VMID" --purge || true
 
-# Create the VM
-qm create \$VMID \\
-  --name "\$VMNAME" \\
-  --memory 4096 \\
-  --cores 4 \\
-  --net0 virtio,bridge=vmbr0,tag=\$VLANID,firewall=1 \\
-  --ide2 local:iso/\$FINAL_ISO,media=cdrom \\
-  --efidisk0 local-zfs:0,efitype=4m,pre-enrolled-keys=0 \\
-  --scsihw virtio-scsi-single \\
-  --scsi0 local-zfs:32 \\
-  --boot order=ide2 \\
-  --serial0 socket \\
-  --ostype l26 \\
+# Create the VM (Proxmox UI name = FQDN)
+qm create "\$VMID" \
+  --name "\$FQDN" \
+  --memory 4096 \
+  --cores 4 \
+  --net0 virtio,bridge=vmbr0,tag="\$VLANID",firewall=1 \
+  --ide2 "local:iso/\$FINAL_ISO",media=cdrom \
+  --efidisk0 local-zfs:0,efitype=4m,pre-enrolled-keys=0 \
+  --scsihw virtio-scsi-single \
+  --scsi0 local-zfs:32 \
+  --boot order=ide2 \
+  --serial0 socket \
+  --ostype l26 \
   --agent enabled=1
 
-qm start \$VMID
+qm start "\$VMID"
 EOSSH
 
 # === Wait for VM to finish Preseed (first shutdown) ===
@@ -1191,7 +1206,6 @@ log "[*] Waiting for VM $VMID to power off after installer preseed phase..."
 
 SECONDS=0
 TIMEOUT=900
-
 while ssh root@"$PROXMOX_HOST" "qm status $VMID" | grep -q running; do
   if (( SECONDS > TIMEOUT )); then
     log "[!] ERROR: Timeout waiting for VM $VMID to shutdown after installer."
@@ -1206,12 +1220,18 @@ log "[*] VM $VMID has powered off after installer. Preparing for postinstall boo
 ssh root@"$PROXMOX_HOST" bash <<EOSSH
 set -euxo pipefail
 
-qm set $VMID --delete ide2
-qm set $VMID --boot order=scsi0
-qm set $VMID --ide3 local-zfs:cloudinit
-qm set $VMID --description "$VMNAME-vlan$VLANID"
+VMID="$VMID"
+VLANID="$VLANID"
+FQDN="${VMNAME_SHORT}.${DOMAIN}"
 
-qm start $VMID
+qm set "\$VMID" --delete ide2
+qm set "\$VMID" --boot order=scsi0
+qm set "\$VMID" --ide3 local-zfs:cloudinit
+
+# No --hostname for QEMU; guest sets its own hostname
+qm set "\$VMID" --description "\$FQDN-vlan\$VLANID"
+
+qm start "\$VMID"
 EOSSH
 
 # === Wait for VM to shut down again after postinstall.sh ===
@@ -1242,8 +1262,8 @@ export CLONE_VLAN_ID="$VLANID"
 export CLONE_GATEWAY="$GATEWAY"
 export CLONE_NAMESERVER1="$NAMESERVER1"
 export CLONE_NAMESERVER2="${NAMESERVER2:-}"
-export VMNAME_CLEAN="$VMNAME"
-export VMNAME_SHORT
+export VMNAME_CLEAN="$VMNAME_CLEAN"
+export VMNAME_SHORT="$VMNAME_SHORT"
 export DOMAIN
 export NUM_CLONES
 export BASE_CLONE_VMID
