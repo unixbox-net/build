@@ -106,7 +106,7 @@ The result: **press a button and get instantly available, production-ready VMs o
 
 ## Key Benefits
 
-- No manual template building: ISO + script does everything.
+- No manual template building: ISO + script does everything automatically.
 - Air-gapped ready: Packages baked into ISO (no mirrors).
 - PXE deployable: ISO can boot bare metal and auto-configure.
 - Cluster-wide scaling: Deploys across Proxmox nodes with ZFS, UFS, or Ceph storage.
