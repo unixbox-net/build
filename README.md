@@ -109,12 +109,63 @@ The result: **press a button and get instantly available, production-ready VMs o
 - No manual template building: ISO + script does everything automatically.
 - Air-gapped ready: Packages baked into ISO (no mirrors).
 - PXE deployable: ISO can boot bare metal and auto-configure.
+- Works on any release archecture such as arm/amd and qemu/kvm based hypervisor (such as proxmox/bhyve)
 - Cluster-wide scaling: Deploys across Proxmox nodes with ZFS, UFS, or Ceph storage.
+- Able include addiitonal hardware such as virtual hard disks, network cards etc.
 - Operator-friendly: Logs everything, hardened configs, clean templates.
 - Mass deployment: Instantly clone hundreds/thousands of instances.
+- Ideal to move from traditional linux "pets" to "cattle" simply destory and replace in seconds.
+- Ensured consistencty, version control and reliability across any number of sites.
 
 ## Advanced Options
 
 - Multiple boot processes supported (systemd services, rc.d).
 - Flexible post-install: bake extra configs, monitoring agents, or business logic.
 - Extendable: add your own packages/scripts into /root/build/scripts.
+- Deliver ANY serivce in a VM wrapper that is fully configured and ready to go.
+- "baked" infrastucutre built from scratch using true Zero Trust OS's built from literally nothing.
+
+## 🔮 Super Advanced Options
+
+This system is not limited to “just making templates.”  
+By extending the build and post-install logic, deployments can be tailored into **zero-trust, user-ready operating systems** that are preconfigured down to the individual user level.
+
+### Examples
+
+- **Zero Trust Builds**
+  - Deploy operating systems that come pre-baked with hardened defaults (firewall, SSH, identity scrubbing).
+  - Inject **per-user policies, credentials, and configs** so that even desktop apps (e.g., Evolution Mail) can be prebaked with accounts, ready to sync a mailbox *before the first login*.
+
+- **Self-Deploying Workstations**
+  - VM images can ship with **RDP/VNC baked in** — upload them to any hypervisor and they appear instantly accessible, with no manual steps.
+  - Supports “desktop anywhere” deployments.
+
+- **Ephemeral Infrastructure**
+  - Combine with a simple `cron` job to **deploy and tear down fleets of VMs automatically**.
+  - Scale environments up and down on-demand (lab, CI/CD, load test, or burst workloads).
+
+- **Near Unlimited Boot Options**
+  - Bake in **ZFS and Boot Environments** to:
+    - Roll out workloads onto ZFS-backed hosts.
+    - Snapshot and rollback entire systems instantly.
+    - Test, patch, or replace systems without risk.
+
+- **Architecture-Agnostic Targets**
+  - Any system with a BIOS/UEFI can be a target: x86, ARM, or beyond.
+  - Write the ISO to a USB stick → boot it in a laptop, server, ARM SBC, or even unconventional hardware.
+  - The same process works from **Proxmox clusters → PXE boot → bare metal → embedded devices**.
+
+- **Cluster Assimilation (Ceph / Storage Expansion)**
+  - New nodes can be deployed with all required configs baked in to **auto-join an existing Proxmox cluster** at first boot.
+  - The deployment process can automatically **consume local disks** and extend the existing **Ceph storage pool** without manual intervention.
+  - Effectively, new hardware (or VMs with attached disks) can be **“assimilated” into the cluster** — expanding compute and storage at the same time.
+  - No keyboard input, no git commands, no manual steps. Just burn → boot → and watch the cluster grow itself.
+
+### In Practice
+
+- Ship a **zero-trust workstation image** to your Proxmox cluster.
+- Auto-deploy it with **per-user credentials baked in**.
+- Let it provision, pull configs, and phone home securely before first login.
+- Rollback, rebuild, or redeploy at will — at **cluster scale or on commodity hardware**.
+
+This makes the system not only a **template factory**, but a **universal deployment engine**.
