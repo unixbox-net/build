@@ -98,3 +98,23 @@ The result: **press a button and get instantly available, production-ready VMs o
 
 # After VM powers down, finalize and clone
 /root/darksite/finalize-template.sh <PROXMOX_HOST> <TEMPLATE_VMID> <CLONE_VMID> <CLONE_IP>
+```
+
+- VM boots → unattended Debian install → runs postinstall.sh → powers off.
+- Script marks it as a template and creates first clone automatically.
+- Clones are immediately usable with baked configs and SSH keys.
+
+## Key Benefits
+
+- No manual template building: ISO + script does everything.
+- Air-gapped ready: Packages baked into ISO (no mirrors).
+- PXE deployable: ISO can boot bare metal and auto-configure.
+- Cluster-wide scaling: Deploys across Proxmox nodes with ZFS, UFS, or Ceph storage.
+- Operator-friendly: Logs everything, hardened configs, clean templates.
+- Mass deployment: Instantly clone hundreds/thousands of instances.
+
+## Advanced Options
+
+- Multiple boot processes supported (systemd services, rc.d).
+- Flexible post-install: bake extra configs, monitoring agents, or business logic.
+- Extendable: add your own packages/scripts into /root/build/scripts.
