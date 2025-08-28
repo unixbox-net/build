@@ -117,6 +117,14 @@ The result: **press a button and get instantly available, production-ready VMs o
 - Ideal to move from traditional linux "pets" to "cattle" simply destory and replace in seconds.
 - Ensured consistencty, version control and reliability across any number of sites.
 
+- **CI/CD Friendly (No Git Required)**
+  - Works with **any existing CI/CD pipeline** — Jenkins, GitLab, GitHub Actions, Semaphore, etc.
+  - Simply **divert or copy your build artifacts** into the ISO’s `darksite/` directory and install durring pressed, or post install via postinstall.sh
+  - On deployment, those artifacts are **installed, configured, and running** automatically.
+  - No need to clone repos or run git commands on the target — making it ideal for **air-gapped, darksite, or zero-trust environments**.
+
+
+
 ## Advanced Options
 
 - Multiple boot processes supported (systemd services, rc.d).
