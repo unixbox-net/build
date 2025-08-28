@@ -109,29 +109,6 @@ The result: **press a button and get instantly available, production-ready VMs o
 
 ---
 
-## Example Workflow
-
-```bash
-# Build ISO and deploy VM/template on Proxmox host 5
-./build-iso.sh
-
-# After VM powers down, finalize and clone
-/root/darksite/finalize-template.sh <PROXMOX_HOST> <TEMPLATE_VMID> <CLONE_VMID> <CLONE_IP>
-
-
-
-
-
-
-# Proxmox ISO Builder and Deployment Tool
-
-This project provides a **fully automated ISO builder and deployment pipeline** for creating custom Debian-based Proxmox VM templates.  
-It automates **repacking ISOs, embedding darksite packages/configs, bootstrapping VMs, finalizing templates, and mass cloning** across Proxmox clusters.
-
-The result: **press a button and get instantly available, production-ready VMs or templates** — anywhere, on Proxmox clusters, bare metal, or even PXE-booted hardware.
-
----
-
 ## Features
 
 - **ISO repacking and darksite builds**
@@ -288,7 +265,7 @@ By extending the build and post-install logic, deployments can be tailored into 
   - Write the ISO to a USB stick → boot it in a laptop, server, ARM SBC, or even unconventional hardware.
   - The same process works from **Proxmox clusters → PXE boot → bare metal → embedded devices**.
 
-- **Cluster Assimilation (Ceph / Storage Expansion)**
+- **Cluster (Ceph / Proxmox) Expansion**
   - New nodes can be deployed with all required configs baked in to **auto-join an existing Proxmox cluster** at first boot.
   - The deployment process can automatically **consume local disks** and extend the existing **Ceph storage pool** without manual intervention.
   - Effectively, new hardware (or VMs with attached disks) can be **“assimilated” into the cluster** — expanding compute and storage at the same time.
