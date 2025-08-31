@@ -236,14 +236,7 @@ log() { echo "[INFO] $(date '+%F %T') — $*"; }
 
 # === USER DEFS ===
 USERS=(
-  "ansible:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIWVsNIM6mkGM93IO64eHzAMg+xDQtDFYwuWRproAjrr ansible@semaphore"
-  "debian:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEM7mYwLYV6GvfoMh7f7y0goimbAtzjdkmCyJuoBEJ4o debian@semaphore"
-  "RQ:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIa5HMKOWih1FxPm0+5myxzudXQi91l5DQi/InJ5vR+O eddsa-key-20250716"
-  "selim:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILG0fkYewHgbwHBpXvgAPU6cXLY0rsnI5k93sRYNnrMe"
-  "geooogle:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILn/zcKJ84eaeQXU62JBx6MW8Zo1k7unS3HdQQrF7dye geooogle@tuf15"
   "todd:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHV51Eelt8PwYreHhJJ4JJP3OMwrXswUShblYY10J+A/ todd@onyx"
-  "coolify:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF4fBk0wYdkT6HJ04BPXv5DSEnvCzPpl06zD6PhWnpKR coolify@init"
-  "srb:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFWguqeG9CRBAZVHATEVLhU7o110wqoZozVczidlK6/h srb@hydra.cuci.nl"
 )
 
 # -----------------------------------------------------------------------------
